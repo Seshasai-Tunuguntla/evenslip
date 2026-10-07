@@ -2,6 +2,7 @@ import 'server-only';
 import { attachDatabasePool } from '@vercel/functions';
 import { drizzle, type NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { Pool } from 'pg';
+import { isPreviewWithoutOwnDatabase } from './env';
 import * as schema from './schema';
 
 export type Db = NodePgDatabase<typeof schema>;
@@ -16,7 +17,7 @@ let instance: Db | undefined;
  */
 export function db(): Db {
   if (instance) return instance;
-  if (process.env['VERCEL_ENV'] === 'preview' && process.env['PREVIEW_HAS_OWN_DATABASE'] !== 'true') {
+  if (isPreviewWithoutOwnDatabase()) {
     throw new Error('This preview deployment has no database of its own.');
   }
   const connectionString = process.env['DATABASE_URL'];
@@ -27,6 +28,3 @@ export function db(): Db {
   instance = drizzle(pool, { schema, casing: 'snake_case' });
   return instance;
 }
-
-export const hasDatabase = () =>
-  Boolean(process.env['DATABASE_URL']) && !(process.env['VERCEL_ENV'] === 'preview' && process.env['PREVIEW_HAS_OWN_DATABASE'] !== 'true');

@@ -2,7 +2,7 @@
 // Every Server Action. Each one starts on the server with requireUser (signed out: redirect to the
 // start page) or requireMember (not a member: 404), and treats every argument, bound or not, as
 // untrusted input from the browser.
-import { createHash, randomBytes } from 'node:crypto';
+import { randomBytes } from 'node:crypto';
 import { and, eq, isNull, sql } from 'drizzle-orm';
 import { revalidatePath } from 'next/cache';
 import { notFound, redirect } from 'next/navigation';
@@ -13,6 +13,7 @@ import { db } from './db';
 import { isUuid, requireMember, requireUser } from './guard';
 import { groupMembers, loadLedger } from './ledger';
 import { expenseShares, expenses, groups, invites, members, payments } from './schema';
+import { hashToken, isInviteToken } from './tokens';
 
 export type ActionState = { error?: string; conflict?: boolean; invitePath?: string } | null;
 
@@ -24,7 +25,6 @@ const text = (form: FormData, name: string) => {
   return typeof value === 'string' ? value : '';
 };
 const firstIssue = (error: z.ZodError) => error.issues[0]?.message ?? 'Check the form and try again.';
-const hashToken = (token: string) => createHash('sha256').update(token).digest('hex');
 
 const groupName = z.string().trim().min(1, 'Give the group a name.').max(60, 'Keep the name to 60 characters.');
 const memberName = z.string().trim().min(1, 'Enter a name.').max(40, 'Keep the name to 40 characters.');
@@ -82,7 +82,7 @@ export async function createInvite(groupId: string, _prev: ActionState, _form: F
 /** The invite token is the authorization here: a valid, unexpired link lets a signed-in user join. */
 export async function joinGroup(token: string, _prev: ActionState, form: FormData): Promise<ActionState> {
   const user = await requireUser();
-  if (typeof token !== 'string' || !/^[\w-]{43}$/.test(token)) notFound();
+  if (!isInviteToken(token)) notFound();
   const [invite] = await db().select().from(invites).where(eq(invites.tokenHash, hashToken(token)));
   if (!invite || invite.expiresAt <= new Date()) notFound();
   if (user.isDemo) return { error: "The demo account can't join groups. Sign in with GitHub to join." };

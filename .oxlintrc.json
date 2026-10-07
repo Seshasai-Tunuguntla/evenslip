@@ -30,7 +30,7 @@
             "paths": [
               {
                 "name": "@/server/db",
-                "message": "Pages and components read data through src/server/queries.ts, which checks membership first."
+                "message": "Pages and components read data through src/server/guard.ts, ledger.ts and invites.ts, after the membership check."
               }
             ]
           }
