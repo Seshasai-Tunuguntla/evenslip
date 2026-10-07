@@ -2,6 +2,18 @@ import type { NextConfig } from 'next';
 
 const nextConfig: NextConfig = {
   poweredByHeader: false,
+  async redirects() {
+    // Sign-in cookies belong to the domain sign-in starts on, and GitHub returns to evenslip.vercel.app,
+    // so Vercel's team alias sends everyone to the main address (path and query kept).
+    return [
+      {
+        source: '/:path*',
+        has: [{ type: 'host', value: 'evenslip-seshasais-projects.vercel.app' }],
+        destination: 'https://evenslip.vercel.app/:path*',
+        permanent: true,
+      },
+    ];
+  },
   async headers() {
     return [
       {
