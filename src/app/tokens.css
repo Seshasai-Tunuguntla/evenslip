@@ -1,0 +1,22 @@
+/* Design tokens: a till receipt on a cobalt counter. scripts/checkContrast.ts reads the colours
+   from this file and checks every pair the components use against WCAG AA, in CI. */
+:root {
+  --color-desk: #1d3b8b;
+  --color-desk-ink: #ffffff;
+  --color-desk-muted: #d3dcf5;
+  --color-desk-focus: #ffd84d;
+
+  --color-paper: #fffdf6;
+  --color-paper-deep: #f3eee0;
+  --color-highlight: #fff0a3;
+  --color-ink: #1c1b19;
+  --color-ink-muted: #5b5850;
+  --color-red: #b0241c;
+  --color-red-wash: #fbe9e6;
+  --color-control-line: #76726a;
+  --color-focus: #1d3b8b;
+
+  --font-mono: var(--font-plex-mono), ui-monospace, 'SFMono-Regular', Menlo, Consolas, monospace;
+  --tooth: 12px;
+  --radius: 2px;
+}

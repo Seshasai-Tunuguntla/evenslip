@@ -1,0 +1,49 @@
+{
+  "name": "evenslip",
+  "private": true,
+  "description": "Split shared expenses in a group and settle up in the fewest payments",
+  "type": "module",
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "typecheck": "next typegen && tsc --noEmit",
+    "lint": "oxlint --deny-warnings",
+    "contrast": "node scripts/checkContrast.ts",
+    "test": "vitest run",
+    "check": "npm run typecheck && npm run lint && npm run contrast && npm test && npm run build",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "node scripts/migrate.ts",
+    "e2e": "playwright test -c e2e/playwright.config.ts --pass-with-no-tests",
+    "screenshots": "playwright test -c e2e/screenshots.config.ts",
+    "vercel-build": "node scripts/vercelBuild.ts",
+    "prepare": "git rev-parse --git-dir > /dev/null 2>&1 && git config core.hooksPath .githooks || true"
+  },
+  "dependencies": {
+    "@vercel/functions": "^3.9.11",
+    "drizzle-orm": "^0.45.3",
+    "next": "^16.4.0",
+    "next-auth": "^5.0.0-beta.32",
+    "pg": "^8.23.1",
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0",
+    "server-only": "^0.0.1",
+    "zod": "^4.6.5"
+  },
+  "devDependencies": {
+    "@axe-core/playwright": "^4.13.0",
+    "@playwright/test": "^1.63.0",
+    "@types/node": "^24.19.1",
+    "@types/pg": "^8.23.1",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "drizzle-kit": "^0.31.11",
+    "fast-check": "^4.10.2",
+    "oxlint": "^1.87.0",
+    "typescript": "^7.0.2",
+    "vitest": "^5.0.3"
+  }
+}

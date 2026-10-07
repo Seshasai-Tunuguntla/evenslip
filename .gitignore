@@ -1,0 +1,15 @@
+node_modules/
+.next/
+next-env.d.ts
+.env
+.env.*
+!.env.example
+coverage/
+.DS_Store
+*.log
+*.tsbuildinfo
+.vercel
+playwright-report/
+test-results/
+.claude/launch.json
+.claude/scheduled_tasks.lock

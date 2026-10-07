@@ -1,0 +1,2 @@
+*, *::before, *::after { box-sizing: border-box; }
+body { margin: 0; background: var(--color-desk); color: var(--color-desk-ink); font-family: var(--font-mono); }
