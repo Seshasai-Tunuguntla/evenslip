@@ -158,3 +158,32 @@ describe('invites', () => {
     expect(await createInvite(demoGroup.groupId, null, form({}))).toMatchObject({ error: expect.stringMatching(/Demo groups/) });
   });
 });
+
+describe('joining twice at once', () => {
+  it('ends with one membership and no database error, however the requests interleave', async () => {
+    const { groupId, b, c } = await groupWithExpense();
+    const token = (await createInvite(groupId, null, form({})))?.invitePath?.replace('/join/', '') ?? '';
+    for (let round = 0; round < 5; round++) {
+      const user = await createUser(`Double clicker ${round}`);
+      signInAs(user);
+      const results = await Promise.allSettled([form({ claim: b }), form({}), form({ claim: c })].map((f) => joinGroup(token, null, f)));
+      // Each one either lands in the group (a redirect) or is told the name was taken; nothing throws.
+      const outcomes = results.map((r) => (r.status === 'rejected' ? String((r.reason as { digest?: unknown }).digest) : (r.value?.error ?? 'no error')));
+      for (const outcome of outcomes) expect(outcome).toMatch(new RegExp(`^NEXT_REDIRECT;\\w+;/groups/${groupId};|already claimed`));
+      expect(await db().select().from(members).where(and(eq(members.groupId, groupId), eq(members.userId, user)))).toHaveLength(1);
+      // Free the placeholders again for the next round.
+      await db().update(members).set({ userId: null }).where(and(eq(members.groupId, groupId), eq(members.userId, user)));
+      await db().delete(members).where(and(eq(members.groupId, groupId), eq(members.userId, user)));
+    }
+  });
+});
+
+describe('limits', () => {
+  it('caps a group at 2,000 expenses', async () => {
+    const { owner, groupId, a } = await groupWithExpense();
+    await db().insert(expenses).values(
+      Array.from({ length: 1999 }, () => ({ groupId, description: 'Chai', amountPaise: 1000, paidBy: a, splitType: 'equal' as const, spentOn: '2026-10-01', createdBy: owner })),
+    );
+    expect(await saveExpense(groupId, null, null, expenseForm({ amount: '10', paidBy: a, parts: { [a]: '' } }))).toMatchObject({ error: expect.stringMatching(/at most 2,000 expenses/) });
+  });
+});

@@ -3,7 +3,7 @@
 // start page) or requireMember (not a member: 404), and treats every argument, bound or not, as
 // untrusted input from the browser.
 import { randomBytes } from 'node:crypto';
-import { and, eq, isNull, sql } from 'drizzle-orm';
+import { and, count, eq, isNull, sql } from 'drizzle-orm';
 import { revalidatePath } from 'next/cache';
 import { notFound, redirect } from 'next/navigation';
 import { z } from 'zod';
@@ -18,11 +18,17 @@ import { hashToken, isInviteToken } from './tokens';
 export type ActionState = { error?: string; conflict?: boolean; invitePath?: string } | null;
 
 const MAX_MEMBERS = 50;
+// Every page load reads a group's whole ledger, so its size is capped.
+const MAX_EXPENSES = 2000;
 const INVITE_DAYS = 7;
 
 const text = (form: FormData, name: string) => {
   const value = form.get(name);
   return typeof value === 'string' ? value : '';
+};
+const violatesConstraint = (error: unknown, constraint: string) => {
+  const cause: unknown = error instanceof Error && error.cause ? error.cause : error;
+  return typeof cause === 'object' && cause !== null && 'constraint' in cause && cause.constraint === constraint;
 };
 const firstIssue = (error: z.ZodError) => error.issues[0]?.message ?? 'Check the form and try again.';
 
@@ -90,18 +96,24 @@ export async function joinGroup(token: string, _prev: ActionState, form: FormDat
   const current = await groupMembers([invite.groupId]);
   if (current.some((m) => m.userId === user.id)) redirect(`/groups/${invite.groupId}`);
   const claim = text(form, 'claim');
-  if (claim) {
-    // Become one of the placeholder members, keeping their expenses. Only if nobody else did first.
-    if (!isUuid(claim)) return { error: 'Choose one of the names on the list.' };
-    const claimed = await db()
-      .update(members)
-      .set({ userId: user.id })
-      .where(and(eq(members.id, claim), eq(members.groupId, invite.groupId), isNull(members.userId)))
-      .returning({ id: members.id });
-    if (claimed.length === 0) return { error: 'Someone else has already claimed that name. Choose another, or join as a new member.' };
-  } else {
-    if (current.length >= MAX_MEMBERS) return { error: `This group already has ${MAX_MEMBERS} members.` };
-    await db().insert(members).values({ groupId: invite.groupId, userId: user.id, name: user.name.slice(0, 40) }).onConflictDoNothing();
+  try {
+    if (claim) {
+      // Become one of the placeholder members, keeping their expenses. Only if nobody else did first.
+      if (!isUuid(claim)) return { error: 'Choose one of the names on the list.' };
+      const claimed = await db()
+        .update(members)
+        .set({ userId: user.id })
+        .where(and(eq(members.id, claim), eq(members.groupId, invite.groupId), isNull(members.userId)))
+        .returning({ id: members.id });
+      if (claimed.length === 0) return { error: 'Someone else has already claimed that name. Choose another, or join as a new member.' };
+    } else {
+      if (current.length >= MAX_MEMBERS) return { error: `This group already has ${MAX_MEMBERS} members.` };
+      await db().insert(members).values({ groupId: invite.groupId, userId: user.id, name: user.name.slice(0, 40) }).onConflictDoNothing();
+    }
+  } catch (error) {
+    // The same person joining twice at once (two tabs): the later write hits the one-membership-per-
+    // user constraint after the check above passed for both. The earlier one made them a member.
+    if (!violatesConstraint(error, 'members_group_user')) throw error;
   }
   refresh(invite.groupId);
   redirect(`/groups/${invite.groupId}`);
@@ -167,6 +179,9 @@ export async function saveExpense(groupId: string, expenseId: string | null, _pr
   const values = { description, amountPaise: amount, paidBy, splitType, spentOn };
 
   if (expenseId === null) {
+    // A soft cap: two saves at the same moment can both pass it, which is harmless.
+    const [existing] = await db().select({ n: count() }).from(expenses).where(eq(expenses.groupId, group.id));
+    if ((existing?.n ?? 0) >= MAX_EXPENSES) return { error: `A group can have at most ${MAX_EXPENSES.toLocaleString('en-IN')} expenses. Start a new group to keep going.` };
     await db().transaction(async (tx) => {
       const [row] = await tx.insert(expenses).values({ ...values, groupId: group.id, createdBy: user.id }).returning({ id: expenses.id });
       if (!row) throw new Error('saveExpense: no row returned');

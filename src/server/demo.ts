@@ -22,6 +22,9 @@ type Seed = {
   id: string;
   name: string;
   members: string[]; // the first is Asha, the demo account
+  // The amount is in whole rupees; each part's value is what the form would send for its split type:
+  // paise for exact, basis points for percent, a weight for shares, ignored for equal. Only the
+  // members listed take part (e.g. Dev didn't rent a scooter).
   expenses: [description: string, rupees: number, paidBy: number, type: SplitType, parts: [member: number, value: number][], spentOn: string][];
 };
 
