@@ -12,7 +12,8 @@
     "typescript/consistent-type-imports": "error",
     "react/react-in-jsx-scope": "off",
     "import/no-unassigned-import": ["warn", { "allow": ["**/*.css", "server-only"] }],
-    "vitest/valid-expect": ["error", { "maxArgs": 2 }]
+    "vitest/valid-expect": ["error", { "maxArgs": 2 }],
+    "vitest/expect-expect": ["error", { "assertFunctionNames": ["expect", "expectRedirect", "expectNotFound", "violates"] }]
   },
   "env": {
     "es2024": true,
