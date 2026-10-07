@@ -21,6 +21,8 @@ export default defineConfig({
           include: ['tests/**/*.test.ts'],
           globalSetup: ['tests/globalSetup.ts'],
           setupFiles: ['tests/setup.ts'],
+          // One file at a time: the demo rebuild deletes every demo group, including other files' ones.
+          fileParallelism: false,
           testTimeout: 20_000,
         },
       },

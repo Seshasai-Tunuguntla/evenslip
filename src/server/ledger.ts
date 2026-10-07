@@ -28,16 +28,15 @@ export function groupMembers(groupIds: string[], conn: Db | Tx = db()) {
 async function loadLedgers(groupIds: string[], conn: Db | Tx): Promise<Map<string, Ledger>> {
   const result = new Map<string, Ledger>();
   if (groupIds.length === 0) return result;
-  const [memberRows, expenseRows, shareRows, paymentRows] = await Promise.all([
-    groupMembers(groupIds, conn),
-    conn.select().from(expenses).where(inArray(expenses.groupId, groupIds)).orderBy(desc(expenses.spentOn), desc(expenses.seq)),
-    conn
-      .select({ share: expenseShares })
-      .from(expenseShares)
-      .innerJoin(expenses, eq(expenses.id, expenseShares.expenseId))
-      .where(inArray(expenses.groupId, groupIds)),
-    conn.select().from(payments).where(inArray(payments.groupId, groupIds)).orderBy(desc(payments.createdAt)),
-  ]);
+  // One after another: inside a transaction they share a single connection.
+  const memberRows = await groupMembers(groupIds, conn);
+  const expenseRows = await conn.select().from(expenses).where(inArray(expenses.groupId, groupIds)).orderBy(desc(expenses.spentOn), desc(expenses.seq));
+  const shareRows = await conn
+    .select({ share: expenseShares })
+    .from(expenseShares)
+    .innerJoin(expenses, eq(expenses.id, expenseShares.expenseId))
+    .where(inArray(expenses.groupId, groupIds));
+  const paymentRows = await conn.select().from(payments).where(inArray(payments.groupId, groupIds)).orderBy(desc(payments.createdAt));
   const sharesByExpense = Map.groupBy(shareRows.map((r) => r.share), (s) => s.expenseId);
   for (const groupId of groupIds) {
     const groupMemberRows = memberRows.filter((m) => m.groupId === groupId);
